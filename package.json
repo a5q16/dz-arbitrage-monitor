@@ -1,0 +1,32 @@
+{
+  "name": "dz-arbitrage-monitor",
+  "version": "1.0.0",
+  "description": "Automated Arbitrage & Market-Monitoring system targeting the Algerian market",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test src/**/*.test.js",
+    "scrape:fb": "node src/scrapers/facebookMarketplace.js",
+    "scrape:ouedkniss": "node src/scrapers/ouedkniss.js",
+    "poll": "node src/sourcing/leboncoinPoller.js"
+  },
+  "dependencies": {
+    "apify-client": "^2.9.0",
+    "axios": "^1.7.0",
+    "dotenv": "^16.4.0",
+    "groq-sdk": "^0.8.0",
+    "node-telegram-bot-api": "^0.66.0",
+    "scrapingbee": "^1.7.0",
+    "cheerio": "^1.0.0",
+    "winston": "^3.14.0",
+    "cron": "^3.1.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
