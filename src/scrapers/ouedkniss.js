@@ -6,7 +6,8 @@
 // Cheerio.
 // ─────────────────────────────────────────────────────────────
 
-import ScrapingBeeClient from 'scrapingbee';
+import scrapingbee from 'scrapingbee';
+const { ScrapingBeeClient } = scrapingbee;
 import * as cheerio from 'cheerio';
 import config from '../config/index.js';
 import logger from '../config/logger.js';
