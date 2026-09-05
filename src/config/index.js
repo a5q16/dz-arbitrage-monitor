@@ -39,7 +39,27 @@ const config = Object.freeze({
     eurToDzd: Number(process.env.EUR_TO_DZD_RATE) || 280,
     internalFrShippingFee: Number(process.env.INTERNAL_FR_SHIPPING_FEE) || 15,
     minMarginDzd: Number(process.env.MIN_MARGIN_DZD) || 10_000,
-    pollIntervalMs: Number(process.env.POLL_INTERVAL_MS) || 300_000,
+    pollIntervalMs: Number(process.env.POLL_INTERVAL_MS) || 900_000, // 15 min default (free tier)
+  },
+
+  // ── Fallback Market Prices (DZD) ──────────────────────
+  // Used for quick pre-screening BEFORE burning Apify/ScrapingBee credits.
+  // Only ads that pass this rough check will trigger paid scraping.
+  fallbackPrices: {
+    'PS5':              135_000,
+    'PS5 Disc Edition': 135_000,
+    'PS5 Digital':      115_000,
+    'PS5 Slim':         120_000,
+    'PS5 Slim Digital': 105_000,
+    'Xbox Series X':    110_000,
+    'Xbox Series S':     70_000,
+  },
+
+  // ── Rate-Limit / Free-Tier Backoff ────────────────────
+  rateLimits: {
+    backoffMs: 60_000,         // pause 1 min after a 429/402
+    maxBackoffMs: 600_000,     // max pause 10 min
+    maxRetriesPerCycle: 2,     // retry at most 2× per poll cycle
   },
 
   // ── Colissimo Algeria Tariff (EUR) ────────────────────

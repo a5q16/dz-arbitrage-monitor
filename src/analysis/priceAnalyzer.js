@@ -9,6 +9,7 @@
 import Groq from 'groq-sdk';
 import config from '../config/index.js';
 import logger from '../config/logger.js';
+import { withRateLimitGuard } from '../config/rateLimiter.js';
 
 const groq = new Groq({ apiKey: config.groq.apiKey });
 
@@ -65,16 +66,23 @@ ${JSON.stringify(data.listings, null, 2)}
 Filter spam/accessories and compute the realistic average selling price in DZD.
 Respond ONLY with the JSON object.`;
 
-  const completion = await groq.chat.completions.create({
-    model: config.groq.model,
-    temperature: 0.15,
-    max_tokens: 2048,
-    response_format: { type: 'json_object' },
-    messages: [
-      { role: 'system', content: PRICE_ANALYSIS_SYSTEM_PROMPT },
-      { role: 'user', content: userPrompt },
-    ],
-  });
+  const completion = await withRateLimitGuard('groq', () =>
+    groq.chat.completions.create({
+      model: config.groq.model,
+      temperature: 0.15,
+      max_tokens: 2048,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: PRICE_ANALYSIS_SYSTEM_PROMPT },
+        { role: 'user', content: userPrompt },
+      ],
+    }),
+  );
+
+  if (!completion) {
+    logger.warn(`[Groq] Skipped price analysis (rate-limited)`);
+    return null;
+  }
 
   const raw = completion.choices[0]?.message?.content;
   if (!raw) throw new Error('[Groq] Empty response from price analysis');

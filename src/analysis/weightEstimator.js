@@ -9,6 +9,7 @@
 import Groq from 'groq-sdk';
 import config from '../config/index.js';
 import logger from '../config/logger.js';
+import { withRateLimitGuard } from '../config/rateLimiter.js';
 
 const groq = new Groq({ apiKey: config.groq.apiKey });
 
@@ -84,16 +85,23 @@ Respond ONLY with the JSON object.`;
 export async function estimateWeight(ad) {
   logger.info(`[Groq] Estimating weight for: "${ad.title}"`);
 
-  const chatCompletion = await groq.chat.completions.create({
-    model: config.groq.model,
-    temperature: config.groq.temperature,
-    max_tokens: config.groq.maxTokens,
-    response_format: { type: 'json_object' },
-    messages: [
-      { role: 'system', content: WEIGHT_ESTIMATION_SYSTEM_PROMPT },
-      { role: 'user', content: buildUserPrompt(ad) },
-    ],
-  });
+  const chatCompletion = await withRateLimitGuard('groq', () =>
+    groq.chat.completions.create({
+      model: config.groq.model,
+      temperature: config.groq.temperature,
+      max_tokens: config.groq.maxTokens,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: WEIGHT_ESTIMATION_SYSTEM_PROMPT },
+        { role: 'user', content: buildUserPrompt(ad) },
+      ],
+    }),
+  );
+
+  if (!chatCompletion) {
+    logger.warn(`[Groq] Skipped weight estimation (rate-limited)`);
+    return null;
+  }
 
   const raw = chatCompletion.choices[0]?.message?.content;
   if (!raw) {

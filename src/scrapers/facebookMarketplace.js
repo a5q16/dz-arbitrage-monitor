@@ -9,6 +9,7 @@
 import { ApifyClient } from 'apify-client';
 import config from '../config/index.js';
 import logger from '../config/logger.js';
+import { withRateLimitGuard, isServicePaused } from '../config/rateLimiter.js';
 
 const apify = new ApifyClient({ token: config.apify.token });
 
@@ -28,32 +29,22 @@ const SEARCH_QUERIES = {
  * @param {string} consoleModel – e.g. "PS5", "Xbox Series X"
  * @param {object} [options]
  * @param {string} [options.location]    – location filter (default: "Algeria")
- * @param {number} [options.maxListings] – max results to fetch (default: 30)
+ * @param {number} [options.maxListings] – max results to fetch (default: 15 for free tier)
  * @param {number} [options.maxPrice]    – max price filter in DZD
- * @returns {Promise<Array<{
- *   title: string,
- *   price: string | null,
- *   description: string | null,
- *   location: string | null,
- *   url: string | null,
- *   imageUrl: string | null,
- *   postedAt: string | null,
- *   sellerName: string | null
- * }>>}
+ * @returns {Promise<Array>}
  */
 export async function scrapeFacebookMarketplace(consoleModel, options = {}) {
+  if (isServicePaused('apify')) return [];
+
   const {
     location = 'Algeria',
-    maxListings = 30,
+    maxListings = 15,    // reduced from 30 for free tier
     maxPrice,
   } = options;
 
   const queries = SEARCH_QUERIES[consoleModel] || [consoleModel];
   logger.info(`[Apify/FB] Starting scrape for "${consoleModel}" in ${location} (queries: ${queries.join(', ')})`);
 
-  // ── Actor Input ────────────────────────────────────────
-  // Schema follows the apify/facebook-marketplace-scraper actor.
-  // Adjust field names if using a community/alternative actor.
   const actorInput = {
     searchQueries: queries,
     location,
@@ -63,14 +54,18 @@ export async function scrapeFacebookMarketplace(consoleModel, options = {}) {
     sortBy: 'creation_date_descending',
     proxy: {
       useApifyProxy: true,
-      apifyProxyGroups: ['RESIDENTIAL'],  // residential IPs for FB
+      apifyProxyGroups: ['RESIDENTIAL'],
     },
   };
 
-  // ── Run Actor ──────────────────────────────────────────
-  const run = await apify.actor(config.apify.fbActorId).call(actorInput, {
-    waitSecs: 120,  // wait up to 2 min for completion
-  });
+  // ── Run Actor (wrapped with rate-limit guard) ──────────
+  const run = await withRateLimitGuard('apify', () =>
+    apify.actor(config.apify.fbActorId).call(actorInput, {
+      waitSecs: 120,
+    }),
+  );
+
+  if (!run) return [];   // rate-limited, skip gracefully
 
   logger.info(`[Apify/FB] Run ${run.id} finished with status: ${run.status}`);
 
